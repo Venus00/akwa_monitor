@@ -1,11 +1,9 @@
 import express from 'express';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import 'dotenv/config';
+import { Client } from 'ssh2';
 
-const execFileAsync = promisify(execFile);
 const app = express();
 app.use(express.json());
 
@@ -22,11 +20,30 @@ const devices = [
 
 const env = {
   user: process.env.SSH_USER || 'admin',
+  password: process.env.SSH_PASSWORD || '',
   port: process.env.SSH_PORT || '22',
   timeout: process.env.SSH_CONNECT_TIMEOUT || '8',
   strictHostKeyChecking: process.env.SSH_STRICT_HOST_KEY_CHECKING || 'accept-new',
   logPath: process.env.DEVICE_LOG_PATH || '/home/admin/device-client-logs'
 };
+
+function runRemote(device, command) {
+  return new Promise((resolve, reject) => {
+    const client = new Client();
+    let settled = false;
+    const finish = (fn, value) => { if (!settled) { settled = true; client.end(); fn(value); } };
+    const timer = setTimeout(() => finish(reject, new Error(`SSH connection timeout after ${env.timeout}s`)), (Number(env.timeout) + 4) * 1000);
+    client.on('ready', () => client.exec(command, (error, stream) => {
+      if (error) { clearTimeout(timer); return finish(reject, error); }
+      let stdout = ''; let stderr = '';
+      stream.on('data', (chunk) => { stdout += chunk.toString(); });
+      stream.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
+      stream.on('close', (code) => { clearTimeout(timer); if (code) finish(reject, new Error(stderr.trim() || `Remote command exited with code ${code}`)); else finish(resolve, { stdout, stderr }); });
+    }));
+    client.on('error', (error) => { clearTimeout(timer); finish(reject, error); });
+    client.connect({ host: device.ip, port: Number(env.port), username: env.user, password: env.password, readyTimeout: Number(env.timeout) * 1000, tryKeyboard: false });
+  });
+}
 
 const remoteScript = (logPath) => `
 set -eu
@@ -52,9 +69,8 @@ function parseDuration(text) {
 
 async function collect(device) {
   const started = Date.now();
-  const args = ['-o', 'BatchMode=yes', '-o', `StrictHostKeyChecking=${env.strictHostKeyChecking}`, '-o', `ConnectTimeout=${env.timeout}`, '-p', env.port, `${env.user}@${device.ip}`, remoteScript(env.logPath)];
   try {
-    const { stdout } = await execFileAsync('ssh', args, { timeout: (Number(env.timeout) + 4) * 1000, maxBuffer: 2 * 1024 * 1024 });
+    const { stdout } = await runRemote(device, remoteScript(env.logPath));
     const lines = stdout.trim().split(/\r?\n/).filter(Boolean);
     const meta = Object.fromEntries(lines.filter((line) => line.includes('=')).map((line) => line.split('=')));
     const samples = new Map(lines.filter((line) => line.startsWith('SAMPLE|')).map((line) => { const [, file, raw] = line.split('|'); return [file, raw]; }));

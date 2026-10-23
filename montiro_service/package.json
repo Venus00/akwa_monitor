@@ -15,6 +15,7 @@
     "express": "latest",
     "react": "latest",
     "react-dom": "latest",
+    "ssh2": "latest",
     "vite": "latest"
   },
   "devDependencies": {}
