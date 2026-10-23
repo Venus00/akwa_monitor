@@ -78,7 +78,11 @@ async function collect(device) {
       const [, birth, modified, file] = line.split('|');
       const bootId = file.match(/fifo-demarrage-([0-9a-f-]+)\./i)?.[1] || null;
       const columns = (samples.get(file) || '').split(';');
-      return { file, bootId, createdAt: new Date(Number(birth) * 1000).toISOString(), modifiedAt: new Date(Number(modified) * 1000).toISOString(), sample: columns.length >= 17 ? { at: columns[0], cpuPercent: columns[5], memoryPercent: columns[9], temperatureC: columns[10], diskPercent: columns[13], load1: columns[14] } : null };
+      const durationSeconds = Number(columns[4]);
+      const sampleAt = columns[0] || null;
+      const sampleDate = sampleAt ? new Date(sampleAt) : null;
+      const rebootAt = sampleDate && !Number.isNaN(sampleDate.getTime()) && Number.isFinite(durationSeconds) ? new Date(sampleDate.getTime() - durationSeconds * 1000).toISOString() : null;
+      return { file, bootId, createdAt: new Date(Number(birth) * 1000).toISOString(), modifiedAt: new Date(Number(modified) * 1000).toISOString(), rebootAt, sample: columns.length >= 17 ? { at: sampleAt, durationSeconds, cpuPercent: columns[5], memoryPercent: columns[9], temperatureC: columns[10], diskPercent: columns[13], load1: columns[14] } : null };
     }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     return { ...device, status: 'online', hostname: meta.HOSTNAME || device.name, uptimeSeconds: Number(meta.UPTIME_SECONDS || 0), reboots: files, monitoring: files.slice(0, 20).map(({ file, sample }) => ({ file, ...sample })).filter((row) => row.at), latestBoot: files[0]?.bootId || null, checkedAt: new Date().toISOString(), latencyMs: Date.now() - started };
   } catch (error) {
