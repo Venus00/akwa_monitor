@@ -1,0 +1,47 @@
+============================================================
+ DEPLOIEMENT DE rk3588_config.sh SUR LA CARTE RK3588
+============================================================
+ Prerequis : PC et carte sur le meme reseau, utilisateur "admin".
+ Lancer le script en SSH .
+
+------------------------------------------------------------
+1) Depuis le PC (dans ce dossier) : copier le script sur la carte
+------------------------------------------------------------
+scp rk3588_config.sh admin@IP:/home/admin/rk3588_config.sh
+
+   exemple : scp rk3588_config.sh admin@192.168.1.10:/home/admin/rk3588_config.sh
+
+------------------------------------------------------------
+2) Se connecter a la carte
+------------------------------------------------------------
+ssh admin@IP
+
+   exemple : ssh admin@192.168.1.10
+
+------------------------------------------------------------
+3) Sur la carte : retirer les fins de ligne Windows (CRLF) et lancer
+------------------------------------------------------------
+sed -i 's/\r$//' /home/admin/rk3588_config.sh
+chmod +x /home/admin/rk3588_config.sh
+sudo /home/admin/rk3588_config.sh
+
+------------------------------------------------------------
+5) Redemarrer
+------------------------------------------------------------
+sudo reboot
+
+
+
+
+##########################################################""
+apres deploy de service akoi
+
+Depuis le PC (dans ce dossier) : copier le script sur la carte
+------------------------------------------------------------
+scp deploy-monitor.sh admin@IP:/home/elhallabi/deploy-monitor.sh
+
+chmod +x /home/elhallabi/deploy-monitor.sh
+sudo /home/elhallabi/deploy-monitor.sh
+
+
+
