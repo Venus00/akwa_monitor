@@ -80,6 +80,7 @@ function parseDuration(text) {
 }
 
 const criticalKernelPattern = /(fatal|critical|panic|oops|call trace|blocked for more than|hung task|i\/o error|out of memory|oom|watchdog|hardware error|machine check|corrupt|segfault|general protection|read-only file system|kernel bug|bug:|cannot get|can't request|cannot claim|failed\b|invalid\b|error at|error applying|not found|no .* resource|status -\d+)/i;
+const benignKernelPattern = /(failed to reserve memory for node 'drm-(logo|cubic-lut)@0'|fiq_debugger.*(irq|wakeup).*not found|shared_niu_[ah].*not found|no niu .* resource define|failed to get vop (bandwidth|pn)|debugfs: directory .* already present)/i;
 
 async function collect(device) {
   const started = Date.now();
@@ -87,7 +88,7 @@ async function collect(device) {
     const { stdout } = await runRemote(device, remoteScript(env.logPath));
     const lines = stdout.trim().split(/\r?\n/).filter(Boolean);
     const meta = Object.fromEntries(lines.filter((line) => line.includes('=')).map((line) => line.split('=')));
-    const decodeKernel = (prefix) => { const encoded = lines.find((line) => line.startsWith(`${prefix}|`))?.slice(prefix.length + 1) || ''; return encoded ? Buffer.from(encoded, 'base64').toString('utf8').split(/\r?\n/).filter((line) => criticalKernelPattern.test(line)).slice(-100) : []; };
+    const decodeKernel = (prefix) => { const encoded = lines.find((line) => line.startsWith(`${prefix}|`))?.slice(prefix.length + 1) || ''; return encoded ? Buffer.from(encoded, 'base64').toString('utf8').split(/\r?\n/).filter((line) => criticalKernelPattern.test(line) && !benignKernelPattern.test(line)).slice(-100) : []; };
     const kernelLogs = { dmesg: decodeKernel('KERNEL_DMESG'), journal: decodeKernel('KERNEL_JOURNAL') };
     const samples = new Map(lines.filter((line) => line.startsWith('SAMPLE|')).map((line) => { const [, file, raw] = line.split('|'); return [file, raw]; }));
     const files = lines.filter((line) => line.startsWith('FILE|')).map((line) => {
