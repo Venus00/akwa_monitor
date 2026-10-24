@@ -79,13 +79,15 @@ function parseDuration(text) {
   return m ? Number(m[1]) * 86400 + Number(m[2]) * 3600 + Number(m[3]) * 60 + Number(m[4]) : null;
 }
 
+const criticalKernelPattern = /\b(fatal|critical|panic|oops|call trace|blocked for more than|hung task|i\/o error|out of memory|oom|watchdog|hardware error|machine check|corrupt|segfault|general protection|read-only file system|kernel bug|bug:)\b/i;
+
 async function collect(device) {
   const started = Date.now();
   try {
     const { stdout } = await runRemote(device, remoteScript(env.logPath));
     const lines = stdout.trim().split(/\r?\n/).filter(Boolean);
     const meta = Object.fromEntries(lines.filter((line) => line.includes('=')).map((line) => line.split('=')));
-    const decodeKernel = (prefix) => { const encoded = lines.find((line) => line.startsWith(`${prefix}|`))?.slice(prefix.length + 1) || ''; return encoded ? Buffer.from(encoded, 'base64').toString('utf8').split(/\r?\n/).filter(Boolean).slice(-100) : []; };
+    const decodeKernel = (prefix) => { const encoded = lines.find((line) => line.startsWith(`${prefix}|`))?.slice(prefix.length + 1) || ''; return encoded ? Buffer.from(encoded, 'base64').toString('utf8').split(/\r?\n/).filter((line) => criticalKernelPattern.test(line)).slice(-100) : []; };
     const kernelLogs = { dmesg: decodeKernel('KERNEL_DMESG'), journal: decodeKernel('KERNEL_JOURNAL') };
     const samples = new Map(lines.filter((line) => line.startsWith('SAMPLE|')).map((line) => { const [, file, raw] = line.split('|'); return [file, raw]; }));
     const files = lines.filter((line) => line.startsWith('FILE|')).map((line) => {

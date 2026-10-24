@@ -1,8 +1,12 @@
 import json
 import os
 import sys
-from datetime import datetime
-from zoneinfo import ZoneInfo
+from datetime import datetime, timezone
+try:
+    from zoneinfo import ZoneInfo
+    REPORT_ZONE = ZoneInfo('Africa/Casablanca')
+except Exception:
+    REPORT_ZONE = timezone.utc
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -16,7 +20,6 @@ MUTED = colors.HexColor('#61737E')
 TEAL = colors.HexColor('#147D68')
 PALE = colors.HexColor('#EAF5F1')
 RED = colors.HexColor('#A83C49')
-REPORT_ZONE = ZoneInfo('Africa/Casablanca')
 
 def date_text(value):
     if not value:
@@ -72,8 +75,8 @@ def build_report(source, output, logo_path=None):
     story += [header, Spacer(1, 12)]
     summary = Table([[para('CARTES TESTEES', styles['SmallX']), para('EN LIGNE', styles['SmallX']), para('HORS LIGNE', styles['SmallX']), para('SOURCES ANALYSEES', styles['SmallX'])], [para(len(devices), styles['H1X']), para(online, styles['H1X']), para(len(devices)-online, styles['H1X']), para('SSH / seconde / dmesg / journalctl -k', styles['SmallX'])]], colWidths=[35*mm, 30*mm, 30*mm, 79*mm])
     summary.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,-1), PALE), ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#B9DCD3')), ('VALIGN', (0,0), (-1,-1), 'MIDDLE'), ('LEFTPADDING', (0,0), (-1,-1), 9), ('RIGHTPADDING', (0,0), (-1,-1), 9), ('TOPPADDING', (0,0), (-1,-1), 8), ('BOTTOMPADDING', (0,0), (-1,-1), 8)]))
-    story += [summary, Spacer(1, 14), para('Objet et perimetre du diagnostic', styles['H1X']), para('Ce rapport documente la reception et l\'analyse des cartes HARDIOTM7 AKWA retournees apres un incident constate sur le terrain. Les tests portent sur l\'accessibilite SSH, la duree de fonctionnement, l\'historique des redemarrages, les mesures de supervision et les erreurs noyau lues avec dmesg et journalctl -k. Les cartes inaccessibles sont marquees hors ligne et leurs mesures ainsi que leurs journaux noyau sont indiquees comme indisponibles. Toutes les dates sont normalisees selon le fuseau Africa/Casablanca.', styles['BodyX']), para('Controles de diagnostic', styles['H2X'])]
-    checks = [['Controle', 'Methode', 'Preuve d\'acceptation'], ['Reseau et SSH', 'Ouvrir une session SSH avec les identifiants serveur configures.', 'La carte retourne une reponse.'], ['Duree de fonctionnement', 'Lire /proc/uptime sur la carte.', 'La duree est presente et positive.'], ['Historique des redemarrages', 'Lister les CSV de demarrage et lire la derniere ligne de chaque fichier.', 'Chaque fichier fournit un UUID et une date de redemarrage derivee.'], ['Supervision', 'Lire la derniere ligne delimitee par des points-virgules de chaque CSV.', 'Date, duree, CPU, memoire, temperature et disque sont captures.'], ['Erreurs noyau', 'Lire dmesg et journalctl -k avec les niveaux erreur a critique.', 'Les messages noyau sont captures ou declares indisponibles.']]
+    story += [summary, Spacer(1, 14), para('Objet et perimetre du diagnostic', styles['H1X']), para('Ce rapport documente la reception et l\'analyse des cartes HARDIOTM7 AKWA retournees apres un incident constate sur le terrain. Les tests portent sur l\'accessibilite SSH, la duree de fonctionnement, l\'historique des redemarrages, les mesures de supervision et les alertes noyau critiques lues avec dmesg et journalctl -k. Les cartes inaccessibles sont marquees hors ligne et leurs mesures ainsi que leurs journaux noyau sont indiquees comme indisponibles.', styles['BodyX']), para('Controles de diagnostic', styles['H2X'])]
+    checks = [['Controle', 'Methode', 'Preuve d\'acceptation'], ['Reseau et SSH', 'Ouvrir une session SSH avec les identifiants serveur configures.', 'La carte retourne une reponse.'], ['Duree de fonctionnement', 'Lire /proc/uptime sur la carte.', 'La duree est presente et positive.'], ['Historique des redemarrages', 'Lister les CSV de demarrage et lire la derniere ligne de chaque fichier.', 'Chaque fichier fournit un UUID et une date de redemarrage derivee.'], ['Supervision', 'Lire la derniere ligne delimitee par des points-virgules de chaque CSV.', 'Date, duree, CPU, memoire, temperature et disque sont captures.'], ['Alertes noyau critiques', 'Lire dmesg et journalctl -k puis filtrer les pannes fatales ou dangereuses.', 'Seuls les messages critiques sont affiches.']]
     check_table = Table([[para(cell, styles['SmallX']) for cell in row] for row in checks], colWidths=[31*mm, 72*mm, 71*mm], repeatRows=1)
     check_table.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), NAVY), ('TEXTCOLOR', (0,0), (-1,0), colors.white), ('GRID', (0,0), (-1,-1), 0.35, colors.HexColor('#D6E0E3')), ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#F5F8F8')]), ('VALIGN', (0,0), (-1,-1), 'TOP'), ('LEFTPADDING', (0,0), (-1,-1), 7), ('RIGHTPADDING', (0,0), (-1,-1), 7), ('TOPPADDING', (0,0), (-1,-1), 6), ('BOTTOMPADDING', (0,0), (-1,-1), 6)]))
     story += [check_table, PageBreak(), para('Board-by-board results', styles['H1X'])]
@@ -88,7 +91,7 @@ def build_report(source, output, logo_path=None):
         overview_table.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), PALE), ('GRID', (0,0), (-1,-1), 0.3, colors.HexColor('#D6E0E3')), ('VALIGN', (0,0), (-1,-1), 'TOP'), ('LEFTPADDING', (0,0), (-1,-1), 6), ('RIGHTPADDING', (0,0), (-1,-1), 6), ('TOPPADDING', (0,0), (-1,-1), 5), ('BOTTOMPADDING', (0,0), (-1,-1), 5)]))
         story += [Spacer(1, 6), overview_table]
         if device.get('error'):
-            story += [Spacer(1, 5), para(f'Resultat de connexion : {device["error"]}', styles['SmallX']), para('Diagnostic noyau - dmesg et journalctl : non capture car la carte est inaccessible.', styles['SmallX'])]
+            story += [Spacer(1, 5), para(f'Resultat de connexion : {device["error"]}', styles['SmallX']), para('Alertes noyau critiques - dmesg et journalctl : non capturees car la carte est inaccessible.', styles['SmallX'])]
         else:
             rows = [['Redemarrage derive', 'Derniere mesure', 'Duree', 'CPU', 'RAM', 'Temp.', 'Disque']]
             for reboot in device.get('reboots', [])[:20]:
@@ -102,12 +105,12 @@ def build_report(source, output, logo_path=None):
             kernel_logs = device.get('kernelLogs', {})
             dmesg_errors = kernel_logs.get('dmesg', [])
             journal_errors = kernel_logs.get('journal', [])
-            kernel_rows = [[para('Source', styles['SmallX']), para('Messages noyau recents', styles['SmallX'])]]
-            kernel_rows += [[para('dmesg', styles['SmallX']), para(message, styles['SmallX'])] for message in (dmesg_errors[-30:] if dmesg_errors else ['Aucun message erreur retourne par dmesg.'])]
-            kernel_rows += [[para('journalctl -k', styles['SmallX']), para(message, styles['SmallX'])] for message in (journal_errors[-30:] if journal_errors else ['Aucun message erreur retourne par le journal noyau.'])]
+            kernel_rows = [[para('Source', styles['SmallX']), para('Alertes noyau critiques ou dangereuses', styles['SmallX'])]]
+            kernel_rows += [[para('dmesg', styles['SmallX']), para(message, styles['SmallX'])] for message in (dmesg_errors[-30:] if dmesg_errors else ['Aucune alerte critique retournee par dmesg.'])]
+            kernel_rows += [[para('journalctl -k', styles['SmallX']), para(message, styles['SmallX'])] for message in (journal_errors[-30:] if journal_errors else ['Aucune alerte critique retournee par le journal noyau.'])]
             kernel_table = Table(kernel_rows, colWidths=[30*mm, 144*mm], repeatRows=1)
             kernel_table.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), NAVY), ('TEXTCOLOR', (0,0), (-1,0), colors.white), ('GRID', (0,0), (-1,-1), 0.3, colors.HexColor('#D6E0E3')), ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#F5F8F8')]), ('VALIGN', (0,0), (-1,-1), 'TOP'), ('LEFTPADDING', (0,0), (-1,-1), 6), ('RIGHTPADDING', (0,0), (-1,-1), 6), ('TOPPADDING', (0,0), (-1,-1), 4), ('BOTTOMPADDING', (0,0), (-1,-1), 4)]))
-            story += [Spacer(1, 7), para(f'Diagnostic noyau - dmesg et journalctl ({len(dmesg_errors) + len(journal_errors)} messages captures)', styles['H2X']), kernel_table]
+            story += [Spacer(1, 7), para(f'Alertes noyau critiques - dmesg et journalctl ({len(dmesg_errors) + len(journal_errors)} messages capturees)', styles['H2X']), kernel_table]
         story += [Spacer(1, 14)]
     doc.build(story, onFirstPage=footer, onLaterPages=footer)
 
