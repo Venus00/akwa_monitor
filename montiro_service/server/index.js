@@ -66,6 +66,12 @@ for f in $(find "$LOG_PATH/seconde" -maxdepth 1 -type f -name '*.csv' 2>/dev/nul
   last=$(tail -n 1 "$f" 2>/dev/null || true)
   printf 'SAMPLE|%s|%s\\n' "$file" "$last"
 done | sort -t'|' -k2,2nr | head -400
+dmesg_text=$(dmesg --level=err,crit,alert,emerg --ctime 2>/dev/null || sudo -n dmesg --level=err,crit,alert,emerg --ctime 2>/dev/null || true)
+journal_text=$(journalctl -k -p err..emerg -n 100 --no-pager 2>/dev/null || sudo -n journalctl -k -p err..emerg -n 100 --no-pager 2>/dev/null || true)
+dmesg_b64=$(printf '%s' "$dmesg_text" | base64 -w0 2>/dev/null || true)
+journal_b64=$(printf '%s' "$journal_text" | base64 -w0 2>/dev/null || true)
+printf 'KERNEL_DMESG|%s\\n' "$dmesg_b64"
+printf 'KERNEL_JOURNAL|%s\\n' "$journal_b64"
 `;
 
 function parseDuration(text) {
@@ -79,6 +85,8 @@ async function collect(device) {
     const { stdout } = await runRemote(device, remoteScript(env.logPath));
     const lines = stdout.trim().split(/\r?\n/).filter(Boolean);
     const meta = Object.fromEntries(lines.filter((line) => line.includes('=')).map((line) => line.split('=')));
+    const decodeKernel = (prefix) => { const encoded = lines.find((line) => line.startsWith(`${prefix}|`))?.slice(prefix.length + 1) || ''; return encoded ? Buffer.from(encoded, 'base64').toString('utf8').split(/\r?\n/).filter(Boolean).slice(-100) : []; };
+    const kernelLogs = { dmesg: decodeKernel('KERNEL_DMESG'), journal: decodeKernel('KERNEL_JOURNAL') };
     const samples = new Map(lines.filter((line) => line.startsWith('SAMPLE|')).map((line) => { const [, file, raw] = line.split('|'); return [file, raw]; }));
     const files = lines.filter((line) => line.startsWith('FILE|')).map((line) => {
       const [, birth, modified, file] = line.split('|');
@@ -90,7 +98,7 @@ async function collect(device) {
       const rebootAt = sampleDate && !Number.isNaN(sampleDate.getTime()) && Number.isFinite(durationSeconds) ? new Date(sampleDate.getTime() - durationSeconds * 1000).toISOString() : null;
       return { file, bootId, createdAt: new Date(Number(birth) * 1000).toISOString(), modifiedAt: new Date(Number(modified) * 1000).toISOString(), rebootAt, sample: columns.length >= 17 ? { at: sampleAt, durationSeconds, cpuPercent: columns[5], memoryPercent: columns[9], temperatureC: columns[10], diskPercent: columns[13], load1: columns[14] } : null };
     }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    return { ...device, status: 'online', hostname: meta.HOSTNAME || device.name, uptimeSeconds: Number(meta.UPTIME_SECONDS || 0), reboots: files, monitoring: files.slice(0, 20).map(({ file, sample }) => ({ file, ...sample })).filter((row) => row.at), latestBoot: files[0]?.bootId || null, checkedAt: new Date().toISOString(), latencyMs: Date.now() - started };
+    return { ...device, status: 'online', hostname: meta.HOSTNAME || device.name, uptimeSeconds: Number(meta.UPTIME_SECONDS || 0), reboots: files, monitoring: files.slice(0, 20).map(({ file, sample }) => ({ file, ...sample })).filter((row) => row.at), kernelLogs, latestBoot: files[0]?.bootId || null, checkedAt: new Date().toISOString(), latencyMs: Date.now() - started };
   } catch (error) {
     return { ...device, status: 'offline', error: error.code === 'ENOENT' ? 'ssh command not found' : (error.stderr || error.message).trim(), reboots: [], checkedAt: new Date().toISOString(), latencyMs: Date.now() - started };
   }
@@ -108,7 +116,8 @@ app.get('/api/report.pdf', async (_req, res) => {
     const payload = { generatedAt: new Date().toISOString(), logPath: env.logPath, devices: await collectAll() };
     await fs.writeFile(jsonPath, JSON.stringify(payload), 'utf8');
     const reportScript = path.join(path.dirname(fileURLToPath(import.meta.url)), 'report.py');
-    await execFileAsync(process.env.PYTHON_BIN || 'python', [reportScript, jsonPath, pdfPath], { timeout: 30000 });
+    const logoPath = process.env.FMC2E_LOGO_PATH || path.join(clientRoot, 'assets', 'fmc2e-logo.png');
+    await execFileAsync(process.env.PYTHON_BIN || 'python', [reportScript, jsonPath, pdfPath, logoPath], { timeout: 30000 });
     const pdf = await fs.readFile(pdfPath);
     res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': 'attachment; filename="akwa-factory-test-report.pdf"' }).send(pdf);
   } catch (error) {
