@@ -108,12 +108,13 @@ async function collectAll() { return Promise.all(devices.map(collect)); }
 
 app.get('/api/devices', async (_req, res) => res.json({ checkedAt: new Date().toISOString(), devices: await collectAll() }));
 app.get('/api/config', (_req, res) => res.json({ deviceCount: devices.length, logPath: env.logPath, wifiSsid: process.env.WIFI_SSID || 'NXT-AP2', wifiConnectEnabled: process.env.ENABLE_WIFI_CONNECT === 'true' }));
-app.get('/api/report.pdf', async (_req, res) => {
+async function sendReport(res, plannedReboots = {}) {
   const tempBase = path.join(os.tmpdir(), `akwa-factory-report-${Date.now()}`);
   const jsonPath = `${tempBase}.json`;
   const pdfPath = `${tempBase}.pdf`;
   try {
     const payload = { generatedAt: new Date().toISOString(), logPath: env.logPath, devices: await collectAll() };
+    for (const device of payload.devices) for (const reboot of device.reboots || []) reboot.planned = Boolean(plannedReboots[`${device.ip}:${reboot.file}`]);
     await fs.writeFile(jsonPath, JSON.stringify(payload), 'utf8');
     const reportScript = path.join(path.dirname(fileURLToPath(import.meta.url)), 'report.py');
     const logoPath = process.env.FMC2E_LOGO_PATH || path.join(clientRoot, 'assets', 'fmc2e-logo.png');
@@ -125,7 +126,9 @@ app.get('/api/report.pdf', async (_req, res) => {
   } finally {
     await Promise.allSettled([fs.unlink(jsonPath), fs.unlink(pdfPath)]);
   }
-});
+}
+app.get('/api/report.pdf', async (_req, res) => sendReport(res));
+app.post('/api/report.pdf', async (req, res) => sendReport(res, req.body?.plannedReboots || {}));
 
 const clientRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 app.use(express.static(clientRoot));

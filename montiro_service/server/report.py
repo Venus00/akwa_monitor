@@ -95,7 +95,7 @@ def build_report(source, output, logo_path=None):
     summary = Table([[para('CARTES TESTEES', styles['SmallX']), para('EN LIGNE', styles['SmallX']), para('HORS LIGNE', styles['SmallX']), para('SOURCES ANALYSEES', styles['SmallX'])], [para(len(devices), styles['H1X']), para(online, styles['H1X']), para(len(devices)-online, styles['H1X']), para('SSH / seconde', styles['SmallX'])]], colWidths=[35*mm, 30*mm, 30*mm, 79*mm])
     summary.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,-1), PALE), ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#B9DCD3')), ('VALIGN', (0,0), (-1,-1), 'MIDDLE'), ('LEFTPADDING', (0,0), (-1,-1), 9), ('RIGHTPADDING', (0,0), (-1,-1), 9), ('TOPPADDING', (0,0), (-1,-1), 8), ('BOTTOMPADDING', (0,0), (-1,-1), 8)]))
     story += [summary, Spacer(1, 14), para('Objet et perimetre du diagnostic', styles['H1X']), para('Ce rapport documente la reception et l\'analyse des cartes HARDIOTM7 AKWA retournees apres un incident constate sur le terrain. Les tests portent sur l\'accessibilite SSH, la duree de fonctionnement, l\'historique des redemarrages et les mesures de supervision. Les cartes inaccessibles sont marquees hors ligne et leurs mesures sont indiquees comme indisponibles.', styles['BodyX']), para('Controles de diagnostic', styles['H2X'])]
-    checks = [['Controle', 'Methode', 'Preuve d\'acceptation'], ['Reseau et SSH', 'Ouvrir une session SSH avec les identifiants serveur configures.', 'La carte retourne une reponse.'], ['Duree de fonctionnement', 'Lire /proc/uptime sur la carte.', 'La duree est presente et positive.'], ['Historique des redemarrages', 'Lister les CSV de demarrage et lire la derniere ligne de chaque fichier.', 'Chaque fichier fournit un UUID et une date de redemarrage derivee.'], ['Supervision', 'Lire la derniere ligne delimitee par des points-virgules de chaque CSV.', 'Date, duree, CPU, memoire, temperature et disque sont captures.']]
+    checks = [['Controle', 'Verification', 'Resultat'], ['Connexion', 'Acces SSH a la carte.', 'Carte accessible.'], ['Redemarrage', 'Historique des demarrages.', 'Date et duree disponibles.'], ['Supervision', 'Dernieres mesures de fonctionnement.', 'CPU, RAM, temperature et disque.']]
     check_table = Table([[para(cell, styles['SmallX']) for cell in row] for row in checks], colWidths=[31*mm, 72*mm, 71*mm], repeatRows=1)
     check_table.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), NAVY), ('TEXTCOLOR', (0,0), (-1,0), colors.white), ('GRID', (0,0), (-1,-1), 0.35, colors.HexColor('#D6E0E3')), ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#F5F8F8')]), ('VALIGN', (0,0), (-1,-1), 'TOP'), ('LEFTPADDING', (0,0), (-1,-1), 7), ('RIGHTPADDING', (0,0), (-1,-1), 7), ('TOPPADDING', (0,0), (-1,-1), 6), ('BOTTOMPADDING', (0,0), (-1,-1), 6)]))
     story += [check_table, PageBreak(), para('Board-by-board results', styles['H1X'])]
@@ -112,13 +112,13 @@ def build_report(source, output, logo_path=None):
         if device.get('error'):
             story += [Spacer(1, 5), para(f'Resultat de connexion : {device["error"]}', styles['SmallX'])]
         else:
-            rows = [['Redemarrage derive', 'Derniere mesure', 'Duree', 'CPU', 'RAM', 'Temp.', 'Disque']]
+            rows = [['Redemarrage derive', 'Statut', 'Derniere mesure', 'Duree', 'CPU', 'RAM', 'Temp.', 'Disque']]
             for reboot in device.get('reboots', [])[:20]:
                 sample = reboot.get('sample') or {}
-                rows.append([date_text(reboot.get('rebootAt')), date_text(sample.get('at')), duration(sample.get('durationSeconds')), sample.get('cpuPercent', '-'), sample.get('memoryPercent', '-'), sample.get('temperatureC', '-'), sample.get('diskPercent', '-')])
+                rows.append([date_text(reboot.get('rebootAt')), 'Planifie' if reboot.get('planned') else 'A confirmer', date_text(sample.get('at')), duration(sample.get('durationSeconds')), sample.get('cpuPercent', '-'), sample.get('memoryPercent', '-'), sample.get('temperatureC', '-'), sample.get('diskPercent', '-')])
             if len(rows) == 1:
-                rows.append(['Aucune ligne de journal retournee'] + ['-'] * 6)
-            history = Table([[para(cell, styles['SmallX']) for cell in row] for row in rows], colWidths=[28*mm, 31*mm, 28*mm, 17*mm, 17*mm, 17*mm, 18*mm], repeatRows=1)
+                rows.append(['Aucune ligne retournee'] + ['-'] * 7)
+            history = Table([[para(cell, styles['SmallX']) for cell in row] for row in rows], colWidths=[25*mm, 20*mm, 29*mm, 24*mm, 15*mm, 15*mm, 15*mm, 15*mm], repeatRows=1)
             history.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), NAVY), ('TEXTCOLOR', (0,0), (-1,0), colors.white), ('GRID', (0,0), (-1,-1), 0.3, colors.HexColor('#D6E0E3')), ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#F5F8F8')]), ('VALIGN', (0,0), (-1,-1), 'TOP'), ('LEFTPADDING', (0,0), (-1,-1), 4), ('RIGHTPADDING', (0,0), (-1,-1), 4), ('TOPPADDING', (0,0), (-1,-1), 4), ('BOTTOMPADDING', (0,0), (-1,-1), 4)]))
             story += [Spacer(1, 7), para(f'Historique des redemarrages et des dernieres mesures ({min(len(device.get("reboots", [])), 20)} lignes affichees)', styles['H2X']), history]
         story += [Spacer(1, 14)]
