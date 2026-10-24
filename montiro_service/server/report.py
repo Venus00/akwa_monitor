@@ -113,9 +113,10 @@ def build_report(source, output, logo_path=None):
             story += [Spacer(1, 5), para(f'Resultat de connexion : {device["error"]}', styles['SmallX'])]
         else:
             rows = [['Redemarrage derive', 'Statut', 'Derniere mesure', 'Duree', 'CPU', 'RAM', 'Temp.', 'Disque']]
-            for reboot in device.get('reboots', [])[:20]:
+            for reboot_index, reboot in enumerate(device.get('reboots', [])[:20]):
                 sample = reboot.get('sample') or {}
-                rows.append([date_text(reboot.get('rebootAt')), 'Planifie' if reboot.get('planned') else 'A confirmer', date_text(sample.get('at')), duration(sample.get('durationSeconds')), sample.get('cpuPercent', '-'), sample.get('memoryPercent', '-'), sample.get('temperatureC', '-'), sample.get('diskPercent', '-')])
+                status = 'Demarrage actuel' if device.get('status') == 'online' and reboot_index == 0 else ('Planifie' if reboot.get('planned') else 'A confirmer')
+                rows.append([date_text(reboot.get('rebootAt')), status, date_text(sample.get('at')), duration(sample.get('durationSeconds')), sample.get('cpuPercent', '-'), sample.get('memoryPercent', '-'), sample.get('temperatureC', '-'), sample.get('diskPercent', '-')])
             if len(rows) == 1:
                 rows.append(['Aucune ligne retournee'] + ['-'] * 7)
             history = Table([[para(cell, styles['SmallX']) for cell in row] for row in rows], colWidths=[25*mm, 20*mm, 29*mm, 24*mm, 15*mm, 15*mm, 15*mm, 15*mm], repeatRows=1)
