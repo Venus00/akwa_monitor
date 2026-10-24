@@ -1,9 +1,14 @@
 import express from 'express';
+import fs from 'node:fs/promises';
 import path from 'node:path';
+import os from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import 'dotenv/config';
 import { Client } from 'ssh2';
 
+const execFileAsync = promisify(execFile);
 const app = express();
 app.use(express.json());
 
@@ -94,6 +99,23 @@ async function collectAll() { return Promise.all(devices.map(collect)); }
 
 app.get('/api/devices', async (_req, res) => res.json({ checkedAt: new Date().toISOString(), devices: await collectAll() }));
 app.get('/api/config', (_req, res) => res.json({ deviceCount: devices.length, logPath: env.logPath, wifiSsid: process.env.WIFI_SSID || 'NXT-AP2', wifiConnectEnabled: process.env.ENABLE_WIFI_CONNECT === 'true' }));
+app.get('/api/report.pdf', async (_req, res) => {
+  const tempBase = path.join(os.tmpdir(), `akwa-factory-report-${Date.now()}`);
+  const jsonPath = `${tempBase}.json`;
+  const pdfPath = `${tempBase}.pdf`;
+  try {
+    const payload = { generatedAt: new Date().toISOString(), logPath: env.logPath, devices: await collectAll() };
+    await fs.writeFile(jsonPath, JSON.stringify(payload), 'utf8');
+    const reportScript = path.join(path.dirname(fileURLToPath(import.meta.url)), 'report.py');
+    await execFileAsync(process.env.PYTHON_BIN || 'python', [reportScript, jsonPath, pdfPath], { timeout: 30000 });
+    const pdf = await fs.readFile(pdfPath);
+    res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': 'attachment; filename="akwa-factory-test-report.pdf"' }).send(pdf);
+  } catch (error) {
+    res.status(500).json({ error: error.stderr || error.message });
+  } finally {
+    await Promise.allSettled([fs.unlink(jsonPath), fs.unlink(pdfPath)]);
+  }
+});
 
 const clientRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 app.use(express.static(clientRoot));
