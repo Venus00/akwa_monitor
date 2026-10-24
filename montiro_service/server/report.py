@@ -66,7 +66,7 @@ def footer(canvas, doc):
     canvas.line(18 * mm, 14 * mm, 192 * mm, 14 * mm)
     canvas.setFont('Helvetica', 8)
     canvas.setFillColor(MUTED)
-    canvas.drawString(18 * mm, 9 * mm, 'AKWA | Rapport de suivi des cartes')
+    canvas.drawString(18 * mm, 9 * mm, 'AKWA | Rapport de reception et de diagnostic - Cartes HARDIOTM7')
     canvas.drawRightString(192 * mm, 9 * mm, f'Page {doc.page}')
     canvas.restoreState()
 
