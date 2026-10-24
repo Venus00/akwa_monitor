@@ -66,7 +66,7 @@ def footer(canvas, doc):
     canvas.line(18 * mm, 14 * mm, 192 * mm, 14 * mm)
     canvas.setFont('Helvetica', 8)
     canvas.setFillColor(MUTED)
-    canvas.drawString(18 * mm, 9 * mm, 'AKWA | Factory board monitoring report')
+    canvas.drawString(18 * mm, 9 * mm, 'AKWA | Rapport de suivi des cartes')
     canvas.drawRightString(192 * mm, 9 * mm, f'Page {doc.page}')
     canvas.restoreState()
 
@@ -85,20 +85,20 @@ def build_report(source, output, logo_path=None):
     styles.add(ParagraphStyle(name='BodyX', parent=styles['BodyText'], fontSize=9, leading=13, textColor=INK, spaceAfter=5))
     styles.add(ParagraphStyle(name='SmallX', parent=styles['BodyText'], fontSize=7.2, leading=9.5, textColor=MUTED))
     styles.add(ParagraphStyle(name='WhiteX', parent=styles['BodyText'], fontSize=9, leading=12, textColor=colors.white))
-    doc = SimpleDocTemplate(output, pagesize=A4, rightMargin=18*mm, leftMargin=18*mm, topMargin=16*mm, bottomMargin=20*mm, title='AKWA Factory Test Report', author='AKWA Monitoring')
+    doc = SimpleDocTemplate(output, pagesize=A4, rightMargin=18*mm, leftMargin=18*mm, topMargin=16*mm, bottomMargin=20*mm, title='Rapport de reception et de diagnostic AKWA', author='Supervision AKWA')
     story = []
     report_id = datetime.now().strftime('AKWA-%Y%m%d-%H%M%S')
     logo_cell = Image(logo_path, width=28*mm, height=12*mm, kind='proportional') if logo_path and os.path.isfile(logo_path) else para('FMC2E', styles['SubX'])
     header = Table([[logo_cell, para('RAPPORT DE RECEPTION ET DE DIAGNOSTIC - CARTES HARDIOTM7', styles['TitleDark'])], [para('Client : AKWA', styles['SubDark']), para('Analyse retour terrain et tests fonctionnels', styles['SubDark'])], [para('', styles['SubDark']), para(f'Reference : {report_id}<br/>Date du rapport : {date_text(payload.get("generatedAt"))}', styles['SubDark'])]], colWidths=[35*mm, 139*mm])
     header.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,-1), colors.white), ('BOX', (0,0), (-1,-1), 0.7, colors.HexColor('#D9E2E5')), ('LINEBELOW', (0,0), (-1,0), 1.2, TEAL), ('VALIGN', (0,0), (-1,-1), 'TOP'), ('LEFTPADDING', (0,0), (-1,-1), 12), ('RIGHTPADDING', (0,0), (-1,-1), 12), ('TOPPADDING', (0,0), (-1,-1), 11), ('BOTTOMPADDING', (0,0), (-1,-1), 11)]))
     story += [header, Spacer(1, 12)]
-    summary = Table([[para('CARTES TESTEES', styles['SmallX']), para('EN LIGNE', styles['SmallX']), para('HORS LIGNE', styles['SmallX']), para('SOURCES ANALYSEES', styles['SmallX'])], [para(len(devices), styles['H1X']), para(online, styles['H1X']), para(len(devices)-online, styles['H1X']), para('SSH / seconde', styles['SmallX'])]], colWidths=[35*mm, 30*mm, 30*mm, 79*mm])
+    summary = Table([[para('CARTES TESTEES', styles['SmallX']), para('EN LIGNE', styles['SmallX']), para('HORS LIGNE', styles['SmallX']), para('DONNEES UTILISEES', styles['SmallX'])], [para(len(devices), styles['H1X']), para(online, styles['H1X']), para(len(devices)-online, styles['H1X']), para('Supervision des cartes', styles['SmallX'])]], colWidths=[35*mm, 30*mm, 30*mm, 79*mm])
     summary.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,-1), PALE), ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#B9DCD3')), ('VALIGN', (0,0), (-1,-1), 'MIDDLE'), ('LEFTPADDING', (0,0), (-1,-1), 9), ('RIGHTPADDING', (0,0), (-1,-1), 9), ('TOPPADDING', (0,0), (-1,-1), 8), ('BOTTOMPADDING', (0,0), (-1,-1), 8)]))
     story += [summary, Spacer(1, 14), para('Objet et perimetre du diagnostic', styles['H1X']), para('Ce rapport documente la reception et l\'analyse des cartes HARDIOTM7 AKWA retournees apres un incident constate sur le terrain. Les tests portent sur l\'accessibilite SSH, la duree de fonctionnement, l\'historique des redemarrages et les mesures de supervision. Les cartes inaccessibles sont marquees hors ligne et leurs mesures sont indiquees comme indisponibles.', styles['BodyX']), para('Controles de diagnostic', styles['H2X'])]
     checks = [['Controle', 'Verification', 'Resultat'], ['Connexion', 'Acces SSH a la carte.', 'Carte accessible.'], ['Redemarrage', 'Historique des demarrages.', 'Date et duree disponibles.'], ['Supervision', 'Dernieres mesures de fonctionnement.', 'CPU, RAM, temperature et disque.']]
     check_table = Table([[para(cell, styles['SmallX']) for cell in row] for row in checks], colWidths=[31*mm, 72*mm, 71*mm], repeatRows=1)
     check_table.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), NAVY), ('TEXTCOLOR', (0,0), (-1,0), colors.white), ('GRID', (0,0), (-1,-1), 0.35, colors.HexColor('#D6E0E3')), ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#F5F8F8')]), ('VALIGN', (0,0), (-1,-1), 'TOP'), ('LEFTPADDING', (0,0), (-1,-1), 7), ('RIGHTPADDING', (0,0), (-1,-1), 7), ('TOPPADDING', (0,0), (-1,-1), 6), ('BOTTOMPADDING', (0,0), (-1,-1), 6)]))
-    story += [check_table, PageBreak(), para('Board-by-board results', styles['H1X'])]
+    story += [check_table, PageBreak(), para('Resultats par carte', styles['H1X'])]
     for index, device in enumerate(devices):
         state = 'VALIDE - EN LIGNE' if device.get('status') == 'online' else 'ECHEC - HORS LIGNE'
         state_style = ParagraphStyle(f'state{index}', parent=styles['SmallX'], textColor=TEAL if device.get('status') == 'online' else RED, alignment=2)
