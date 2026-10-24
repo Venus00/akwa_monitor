@@ -79,7 +79,7 @@ function parseDuration(text) {
   return m ? Number(m[1]) * 86400 + Number(m[2]) * 3600 + Number(m[3]) * 60 + Number(m[4]) : null;
 }
 
-const criticalKernelPattern = /\b(fatal|critical|panic|oops|call trace|blocked for more than|hung task|i\/o error|out of memory|oom|watchdog|hardware error|machine check|corrupt|segfault|general protection|read-only file system|kernel bug|bug:)\b/i;
+const criticalKernelPattern = /(fatal|critical|panic|oops|call trace|blocked for more than|hung task|i\/o error|out of memory|oom|watchdog|hardware error|machine check|corrupt|segfault|general protection|read-only file system|kernel bug|bug:|cannot get|can't request|cannot claim|failed\b|invalid\b|error at|error applying|not found|no .* resource|status -\d+)/i;
 
 async function collect(device) {
   const started = Date.now();

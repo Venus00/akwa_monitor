@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import sys
 from datetime import datetime, timezone
 try:
@@ -20,6 +21,7 @@ MUTED = colors.HexColor('#61737E')
 TEAL = colors.HexColor('#147D68')
 PALE = colors.HexColor('#EAF5F1')
 RED = colors.HexColor('#A83C49')
+CRITICAL_KERNEL_PATTERN = re.compile(r'(fatal|critical|panic|oops|call trace|blocked for more than|hung task|i/o error|out of memory|oom|watchdog|hardware error|machine check|corrupt|segfault|general protection|read-only file system|kernel bug|bug:|cannot get|can\'t request|cannot claim|failed\b|invalid\b|error at|error applying|not found|no .* resource|status -\d+)', re.I)
 
 def date_text(value):
     if not value:
@@ -103,8 +105,8 @@ def build_report(source, output, logo_path=None):
             history.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), NAVY), ('TEXTCOLOR', (0,0), (-1,0), colors.white), ('GRID', (0,0), (-1,-1), 0.3, colors.HexColor('#D6E0E3')), ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#F5F8F8')]), ('VALIGN', (0,0), (-1,-1), 'TOP'), ('LEFTPADDING', (0,0), (-1,-1), 4), ('RIGHTPADDING', (0,0), (-1,-1), 4), ('TOPPADDING', (0,0), (-1,-1), 4), ('BOTTOMPADDING', (0,0), (-1,-1), 4)]))
             story += [Spacer(1, 7), para(f'Historique des redemarrages et des dernieres mesures ({min(len(device.get("reboots", [])), 20)} lignes affichees)', styles['H2X']), history]
             kernel_logs = device.get('kernelLogs', {})
-            dmesg_errors = kernel_logs.get('dmesg', [])
-            journal_errors = kernel_logs.get('journal', [])
+            dmesg_errors = [message for message in kernel_logs.get('dmesg', []) if CRITICAL_KERNEL_PATTERN.search(message)]
+            journal_errors = [message for message in kernel_logs.get('journal', []) if CRITICAL_KERNEL_PATTERN.search(message)]
             kernel_rows = [[para('Source', styles['SmallX']), para('Alertes noyau critiques ou dangereuses', styles['SmallX'])]]
             kernel_rows += [[para('dmesg', styles['SmallX']), para(message, styles['SmallX'])] for message in (dmesg_errors[-30:] if dmesg_errors else ['Aucune alerte critique retournee par dmesg.'])]
             kernel_rows += [[para('journalctl -k', styles['SmallX']), para(message, styles['SmallX'])] for message in (journal_errors[-30:] if journal_errors else ['Aucune alerte critique retournee par le journal noyau.'])]
