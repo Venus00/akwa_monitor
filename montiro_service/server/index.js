@@ -20,8 +20,9 @@ const devices = [
   ['HARDIOTM735AAD8F8', '192.168.1.169', 'cc:c4:b2:7c:8f:e9'],
   ['HARDIOTM7E9B4DD73', '192.168.1.96', 'cc:c4:b2:7c:92:0e'],
   ['HARDIOTM7B67E30FB', '192.168.1.33', 'cc:c4:b2:7c:8f:a7'],
-  ['HARDIOTM75862E63E', '192.168.1.180', 'cc:c4:b2:7c:8f:8e']
-].map(([name, ip, mac]) => ({ name, ip, mac }));
+  ['HARDIOTM75862E63E', '192.168.1.180', 'cc:c4:b2:7c:8f:8e', 'BOARD'],
+  ['EDGE-CONTAINER-STRESS-TEST', '192.168.1.34', 'unknown', 'EDGE CONTAINER STRESS TEST']
+].map(([name, ip, mac, tag]) => ({ name, ip, mac, tag }));
 
 const env = {
   user: process.env.SSH_USER || 'admin',

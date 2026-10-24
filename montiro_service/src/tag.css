@@ -1,0 +1,9 @@
+.tag {
+  display: inline-block;
+  color: #72d4b3;
+  border: 1px solid #31564d;
+  border-radius: 4px;
+  padding: 3px 6px;
+  font: 9px 'DM Mono', monospace;
+  letter-spacing: .08em;
+}

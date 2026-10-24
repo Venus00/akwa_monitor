@@ -75,7 +75,7 @@ def build_report(source, output):
         state_style = ParagraphStyle(f'state{index}', parent=styles['SmallX'], textColor=TEAL if device.get('status') == 'online' else RED, alignment=2)
         title = Table([[para(f'{index+1:02d}  {device.get("name", "Unknown")}', styles['H2X']), para(state, state_style)]], colWidths=[120*mm, 54*mm])
         title.setStyle(TableStyle([('LINEBELOW', (0,0), (-1,-1), 0.7, colors.HexColor('#D6E0E3')), ('VALIGN', (0,0), (-1,-1), 'BOTTOM')]))
-        story += [title, para(f'IP address: {device.get("ip", "-")} | MAC address: {device.get("mac", "-")} | Hostname: {device.get("hostname", "-")}', styles['SmallX'])]
+        story += [title, para(f'Tag: {device.get("tag", "BOARD")} | IP address: {device.get("ip", "-")} | MAC address: {device.get("mac", "-")} | Hostname: {device.get("hostname", "-")}', styles['SmallX'])]
         overview = [['Current uptime', 'Latest boot UUID', 'Latency', 'Checked at'], [duration(device.get('uptimeSeconds')), device.get('latestBoot') or '-', f'{device.get("latencyMs", "-")} ms', date_text(device.get('checkedAt'))]]
         overview_table = Table([[para(cell, styles['SmallX']) for cell in row] for row in overview], colWidths=[43*mm, 50*mm, 31*mm, 50*mm])
         overview_table.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), PALE), ('GRID', (0,0), (-1,-1), 0.3, colors.HexColor('#D6E0E3')), ('VALIGN', (0,0), (-1,-1), 'TOP'), ('LEFTPADDING', (0,0), (-1,-1), 6), ('RIGHTPADDING', (0,0), (-1,-1), 6), ('TOPPADDING', (0,0), (-1,-1), 5), ('BOTTOMPADDING', (0,0), (-1,-1), 5)]))
