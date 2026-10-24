@@ -10,7 +10,7 @@ This app polls the eight boards over SSH and displays current uptime, reboot his
 
 The API polls in parallel at `GET /api/devices`. Each reboot file is identified by its boot UUID. The collector uses the Linux filesystem birth time when available and falls back to modification time, because some filesystems do not expose creation time.
 
-The dashboard's **Download PDF report** action calls `GET /api/report.pdf`. It collects a fresh fleet snapshot and generates a factory report containing the AKWA client name, report date, test scope, acceptance checks, per-board SSH result, uptime, reboot times, last-row monitoring values, and recent kernel error messages from both `dmesg` and `journalctl -k`. The report generator requires Python, ReportLab, and the timezone database: `python -m pip install -r server/requirements.txt`. Set `PYTHON_BIN` in `.env` if the Python executable is not on PATH.
+The dashboard's **Download PDF report** action calls `GET /api/report.pdf`. It collects a fresh fleet snapshot and generates a factory report containing the AKWA client name, report date, test scope, acceptance checks, per-board SSH result, uptime, reboot times, last-row monitoring values, and filtered critical kernel error messages from `journalctl -k`. The report generator requires Python, ReportLab, and the timezone database: `python -m pip install -r server/requirements.txt`. Set `PYTHON_BIN` in `.env` if the Python executable is not on PATH.
 
 Place the FMC2E logo at `assets/fmc2e-logo.png`, or set `FMC2E_LOGO_PATH` to an image path. PNG, JPG, and other formats supported by ReportLab are accepted. The report uses a small `FMC2E` text mark until the image is available.
 
