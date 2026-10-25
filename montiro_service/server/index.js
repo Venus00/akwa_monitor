@@ -21,8 +21,9 @@ const devices = [
   ['HARDIOTM7E9B4DD73', '192.168.1.96', 'cc:c4:b2:7c:92:0e'],
   ['HARDIOTM7B67E30FB', '192.168.1.33', 'cc:c4:b2:7c:8f:a7'],
   ['HARDIOTM75862E63E', '192.168.1.180', 'cc:c4:b2:7c:8f:8e', 'BOARD'],
-  ['EDGE-CONTAINER-STRESS-TEST', '192.168.1.34', 'unknown', 'EDGE CONTAINER STRESS TEST']
-].map(([name, ip, mac, tag]) => ({ name, ip, mac, tag }));
+  ['EDGE-CONTAINER-STRESS-TEST', '192.168.1.34', 'unknown', 'EDGE CONTAINER STRESS TEST'],
+  ['BOARD-192.168.1.2', '192.168.1.2', 'unknown', 'BOARD CONTAIN CLIENT APPLICATION', process.env.BOARD_192_168_1_2_USER, process.env.BOARD_192_168_1_2_PASSWORD]
+].map(([name, ip, mac, tag, user, password]) => ({ name, ip, mac, tag, user, password }));
 
 const env = {
   user: process.env.SSH_USER || 'admin',
@@ -47,7 +48,7 @@ function runRemote(device, command) {
       stream.on('close', (code) => { clearTimeout(timer); if (code) finish(reject, new Error(stderr.trim() || `Remote command exited with code ${code}`)); else finish(resolve, { stdout, stderr }); });
     }));
     client.on('error', (error) => { clearTimeout(timer); finish(reject, error); });
-    client.connect({ host: device.ip, port: Number(env.port), username: env.user, password: env.password, readyTimeout: Number(env.timeout) * 1000, tryKeyboard: false });
+    client.connect({ host: device.ip, port: Number(env.port), username: device.user || env.user, password: device.password || env.password, readyTimeout: Number(env.timeout) * 1000, tryKeyboard: false });
   });
 }
 
@@ -81,6 +82,7 @@ const benignKernelPattern = /(failed to reserve memory for node 'drm-(logo|cubic
 
 async function collect(device) {
   const started = Date.now();
+  const { user, password, ...publicDevice } = device;
   try {
     const { stdout } = await runRemote(device, remoteScript(env.logPath));
     const lines = stdout.trim().split(/\r?\n/).filter(Boolean);
@@ -98,9 +100,9 @@ async function collect(device) {
       const rebootAt = sampleDate && !Number.isNaN(sampleDate.getTime()) && Number.isFinite(durationSeconds) ? new Date(sampleDate.getTime() - durationSeconds * 1000).toISOString() : null;
       return { file, bootId, createdAt: new Date(Number(birth) * 1000).toISOString(), modifiedAt: new Date(Number(modified) * 1000).toISOString(), rebootAt, sample: columns.length >= 17 ? { at: sampleAt, durationSeconds, cpuPercent: columns[5], memoryPercent: columns[9], temperatureC: columns[10], diskPercent: columns[13], load1: columns[14] } : null };
     }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    return { ...device, status: 'online', hostname: meta.HOSTNAME || device.name, uptimeSeconds: Number(meta.UPTIME_SECONDS || 0), reboots: files, monitoring: files.slice(0, 20).map(({ file, sample }) => ({ file, ...sample })).filter((row) => row.at), kernelLogs, latestBoot: files[0]?.bootId || null, checkedAt: new Date().toISOString(), latencyMs: Date.now() - started };
+    return { ...publicDevice, status: 'online', hostname: meta.HOSTNAME || device.name, uptimeSeconds: Number(meta.UPTIME_SECONDS || 0), reboots: files, monitoring: files.slice(0, 20).map(({ file, sample }) => ({ file, ...sample })).filter((row) => row.at), kernelLogs, latestBoot: files[0]?.bootId || null, checkedAt: new Date().toISOString(), latencyMs: Date.now() - started };
   } catch (error) {
-    return { ...device, status: 'offline', error: error.code === 'ENOENT' ? 'ssh command not found' : (error.stderr || error.message).trim(), reboots: [], checkedAt: new Date().toISOString(), latencyMs: Date.now() - started };
+    return { ...publicDevice, status: 'offline', error: error.code === 'ENOENT' ? 'ssh command not found' : (error.stderr || error.message).trim(), reboots: [], checkedAt: new Date().toISOString(), latencyMs: Date.now() - started };
   }
 }
 
